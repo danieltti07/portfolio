@@ -1,10 +1,9 @@
 "use client"
 
-import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion"
+import { motion, AnimatePresence, useScroll, useTransform, useMotionValue, useSpring, MotionValue } from "framer-motion"
 import Image from "next/image"
 import { ExternalLink, Github, Star, Code2, Palette, Database, Globe, Zap, Eye, Heart, Clock } from "lucide-react"
-import { useState, useRef } from "react"
-import { ScrollProgress } from "@/components/scroll-progress"
+import { useState, useRef, useEffect } from "react"
 
 
 const projects = [
@@ -226,10 +225,10 @@ export default function Projetos() {
     )
   }
 
-  
+
   return (
     <div ref={containerRef} className="min-h-screen pt-16 sm:pt-24 pb-8 sm:pb-16 px-2 sm:px-4 relative overflow-hidden">
-      
+
       {/* Enhanced Background */}
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-gradient-to-br from-deep-purple via-dark-purple to-deep-purple" />
@@ -237,7 +236,7 @@ export default function Projetos() {
           className="absolute inset-0 opacity-20"
           style={{
             backgroundImage: `radial-gradient(circle at 25% 25%, rgba(255, 215, 0, 0.1) 0%, transparent 50%),
-                             radial-gradient(circle at 75% 75%, rgba(255, 215, 0, 0.05) 0%, transparent 50%)`,
+                               radial-gradient(circle at 75% 75%, rgba(255, 215, 0, 0.05) 0%, transparent 50%)`,
           }}
           animate={{
             backgroundPosition: ["0% 0%", "100% 100%"],
@@ -476,7 +475,7 @@ export default function Projetos() {
                   rel="noopener noreferrer"
                   whileHover={{ scale: 1.05, y: -2 }}
                   whileTap={{ scale: 0.95 }}
-                  className="retro-button bg-transparent border-2 border-gold text-gold hover:bg-gold hover:text-deep-purple inline-flex items-center justify-center gap-3 text-sm sm:text-lg px-6 sm:px-8 py-3 sm:py-4"
+                  className="retro-button bg-transparent border-2 border-gold text-deep-purple hover:bg-gold inline-flex items-center justify-center gap-3 text-sm sm:text-lg px-6 sm:px-8 py-3 sm:py-4"
                 >
                   <Github size={16} className="sm:w-5 sm:h-5" />
                   Ver Código
@@ -506,6 +505,71 @@ function ProjectCard({
   onSelect: () => void
 }) {
   const [isHovered, setIsHovered] = useState(false)
+  const cardRef = useRef<HTMLDivElement>(null)
+
+  // Motion values for 3D effect
+  const mousePosition: MotionValue<[number, number]> = useMotionValue([0, 0])
+
+  // Spring animations for smooth movement
+  // Aumentar stiffness para valores EXTREMAMENTE altos e damping para valores MÍNIMOS.
+  // Isso fará a animação reagir quase que instantaneamente.
+  const rotateX: MotionValue<number> = useSpring(useTransform(mousePosition, ([_x, y]) => y * 30), { // Multiplicador ainda maior para 30
+    stiffness: 10000, // Aumentado para 10000 (valor extremamente alto)
+    damping: 0.5,     // Reduzido para 0.5 (quase sem amortecimento)
+  })
+  const rotateY: MotionValue<number> = useSpring(useTransform(mousePosition, ([x, _y]) => x * -30), { // Multiplicador ainda maior para -30
+    stiffness: 10000, // Aumentado para 10000
+    damping: 0.5,     // Reduzido para 0.5
+  })
+
+  // Scale effect - Mantém a escala responsiva
+  const scale: MotionValue<number> = useSpring(1, { 
+    stiffness: 10000, // Aumentado para 10000
+    damping: 0.5       // Reduzido para 0.5
+  })
+
+  // Ajuste o efeito de sombra para ser mais pronunciado e rápido
+  const shadow: MotionValue<string> = useTransform(
+    mousePosition,
+    ([x, y]: [number, number]): string => {
+      const a = Math.abs(x)
+      const b = Math.abs(y)
+      const distance = Math.sqrt(a * a + b * b)
+      // Aumente os multiplicadores para 'blur' e 'opacity' para um brilho mais visível
+      const blur = distance * 50 // Aumentado para 50
+      const opacity = distance * 0.5 // Aumentado para 0.5
+      return `0px ${blur}px ${blur * 2}px rgba(255, 215, 0, ${opacity})`
+    }
+  )
+
+  const handleMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return
+
+    const rect = cardRef.current.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+
+    // Normalize x and y to be between -1 and 1
+    const x = (event.clientX - centerX) / (rect.width / 2)
+    const y = (event.clientY - centerY) / (rect.height / 2)
+
+    // Atualiza imediatamente a posição do mouse
+    // Esta linha já garante que a "intenção" do movimento seja capturada na hora
+    mousePosition.set([x, y])
+  }
+
+  const handleMouseEnter = () => {
+    setIsHovered(true)
+    scale.set(1.05)
+  }
+
+  const handleMouseLeave = () => {
+    setIsHovered(false)
+    // Para um reset instantâneo, os valores de stiffness e damping no `scale.set(1)`
+    // também precisam ser altos. Como já estão configurados, o reset será rápido.
+    mousePosition.set([0, 0]) // Reset imediato para posição neutra
+    scale.set(1)
+  }
 
   if (viewMode === "list") {
     return (
@@ -574,16 +638,29 @@ function ProjectCard({
 
   return (
     <motion.div
+      ref={cardRef}
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay: index * 0.1 }}
-      whileHover={{ scale: 1.02, y: -10 }}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
-      className="group cursor-pointer"
+      className="group cursor-pointer perspective-1000"
       onClick={onSelect}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        perspective: "1000px",
+      }}
     >
-      <div className="relative bg-deep-purple/40 backdrop-blur-sm border-2 border-gold/30 rounded-3xl overflow-hidden hover:border-gold transition-all duration-500">
+      <motion.div
+        className="relative bg-deep-purple/40 backdrop-blur-sm border-2 border-gold/30 rounded-3xl overflow-hidden hover:border-gold transition-all duration-500"
+        style={{
+          scale,
+          rotateX,
+          rotateY,
+          transformStyle: "preserve-3d",
+          boxShadow: shadow,
+        }}
+      >
         {/* Featured Badge */}
         {project.featured && (
           <div className="absolute top-2 sm:top-4 left-2 sm:left-4 z-20 bg-gold text-deep-purple px-2 sm:px-3 py-1 sm:py-2 rounded-full pixel-text text-xs flex items-center gap-1 sm:gap-2">
@@ -607,57 +684,109 @@ function ProjectCard({
 
         {/* Project Image */}
         <div className="relative h-48 sm:h-64 overflow-hidden">
-          <Image
-            src={project.image || "/placeholder.svg"}
-            alt={project.title}
-            fill
-            className="object-cover group-hover:scale-110 transition-transform duration-700"
-          />
+          <motion.div
+            style={{
+              // Multiplicadores para a rotação da imagem interna (ainda mais sensibilidade)
+              transform: useTransform(
+                mousePosition, 
+                ([x, y]: [number, number]): string => `translateZ(20px) rotateX(${y * 12}deg) rotateY(${x * 12}deg)` // Aumentado para 12
+              ),
+            }}
+          >
+            <Image
+              src={project.image || "/placeholder.svg"}
+              alt={project.title}
+              fill
+              className="object-cover transition-transform duration-700"
+              style={{
+                transform: isHovered ? "scale(1.1)" : "scale(1)",
+              }}
+            />
+          </motion.div>
           <div className="absolute inset-0 bg-gradient-to-t from-deep-purple/80 via-transparent to-transparent" />
-          <div
-            className={`absolute inset-0 bg-gradient-to-br ${project.color} opacity-0 group-hover:opacity-20 transition-opacity duration-500`}
+          <motion.div
+            className={`absolute inset-0 bg-gradient-to-br ${project.color}`}
+            style={{
+              opacity: isHovered ? 0.2 : 0,
+            }}
+            transition={{ duration: 0.5 }}
           />
 
-          {/* Hover Overlay */}
+          {/* Hover Overlay with 3D effect */}
           <AnimatePresence>
             {isHovered && (
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-deep-purple/60 flex items-center justify-center"
+                initial={{ opacity: 0, z: -50 }}
+                animate={{ opacity: 1, z: 0 }}
+                exit={{ opacity: 0, z: -50 }}
+                transition={{ duration: 0.3 }}
+                className="absolute inset-0 bg-deep-purple/90 backdrop-blur-sm flex flex-col justify-center items-center p-4 sm:p-6"
+                style={{
+                  transform: "translateZ(30px)",
+                }}
               >
                 <motion.div
-                  initial={{ scale: 0.8 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0.8 }}
-                  className="text-center px-4"
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.8, opacity: 0 }}
+                  transition={{ duration: 0.3, delay: 0.1 }}
+                  className="text-center"
+                  style={{
+                    transform: "translateZ(20px)",
+                  }}
                 >
-                  <div className="pixel-text text-gold text-sm sm:text-lg mb-2">
-                    <span className="hidden sm:inline">CLIQUE PARA DETALHES</span>
-                    <span className="sm:hidden">VER MAIS</span>
-                  </div>
-                  <div className="flex justify-center gap-4">
+                  <h3 className="pixel-text text-gold text-lg sm:text-xl mb-2 sm:mb-3">
+                    {project.title}
+                  </h3>
+                  <p className="text-cream/90 text-sm sm:text-base mb-4 sm:mb-6 leading-relaxed">
+                    {project.description}
+                  </p>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-center gap-3 sm:gap-4">
                     <motion.a
                       href={project.demoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      whileHover={{ scale: 1.1 }}
+                      whileHover={{ scale: 1.1, z: 10 }}
+                      whileTap={{ scale: 0.9 }}
                       onClick={(e) => e.stopPropagation()}
-                      className="bg-gold/90 text-deep-purple p-2 rounded-full"
+                      className="bg-gold/90 text-deep-purple p-2 sm:p-3 rounded-full hover:bg-gold transition-colors"
+                      style={{
+                        transform: "translateZ(40px)",
+                      }}
                     >
-                      <ExternalLink size={16} />
+                      <ExternalLink size={16} className="sm:w-5 sm:h-5" />
                     </motion.a>
                     <motion.a
                       href={project.githubUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      whileHover={{ scale: 1.1 }}
+                      whileHover={{ scale: 1.1, z: 10 }}
+                      whileTap={{ scale: 0.9 }}
                       onClick={(e) => e.stopPropagation()}
-                      className="bg-deep-purple/90 text-gold p-2 rounded-full border border-gold"
+                      className="bg-deep-purple/90 text-gold p-2 sm:p-3 rounded-full border border-gold hover:bg-deep-purple transition-colors"
+                      style={{
+                        transform: "translateZ(40px)",
+                      }}
                     >
-                      <Github size={16} />
+                      <Github size={16} className="sm:w-5 sm:h-5" />
                     </motion.a>
+                  </div>
+
+                  {/* Tags */}
+                  <div className="flex flex-wrap justify-center gap-1 sm:gap-2 mt-4">
+                    {project.tags.slice(0, 3).map((tag) => (
+                      <span
+                        key={tag}
+                        className="px-2 py-1 bg-gold/20 border border-gold/50 rounded text-gold text-xs pixel-text"
+                        style={{
+                          transform: "translateZ(20px)",
+                        }}
+                      >
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 </motion.div>
               </motion.div>
@@ -666,7 +795,12 @@ function ProjectCard({
         </div>
 
         {/* Content */}
-        <div className="p-4 sm:p-6">
+        <motion.div
+          className="p-4 sm:p-6"
+          style={{
+            transform: "translateZ(10px)",
+          }}
+        >
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
               <div className={`p-1.5 sm:p-2 rounded-lg bg-gradient-to-br ${project.color} flex-shrink-0`}>
@@ -740,8 +874,8 @@ function ProjectCard({
             </div>
             <div className="pixel-text text-xs text-gold">{project.metrics.duration}</div>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </motion.div>
   )
 }
