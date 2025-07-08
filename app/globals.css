@@ -155,6 +155,36 @@
     font-size: 1rem;
   }
 
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;  /* IE e Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  @keyframes rgb-border {
+    0% { border-color: #FF0000; } /* Vermelho */
+    25% { border-color: #00FF00; } /* Verde */
+    50% { border-color: #0000FF; } /* Azul */
+    75% { border-color: #FF00FF; } /* Magenta */
+    100% { border-color: #FF0000; } /* Volta ao Vermelho */
+}
+
+  .rgb-border {
+    border-width: 2px; /* Ajuste a espessura conforme necessário */
+    border-style: solid;
+    animation: rgb-border 5s linear infinite; /* Ajuste a duração da animação conforme necessário */
+  }
+
+  main > div {
+    background: none !important;
+    background-color: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+}
+
   /* Header style with tech feel */
   .tech-japanese {
     font-family: "Impact", "Arial Black", sans-serif;

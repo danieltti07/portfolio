@@ -24,8 +24,9 @@ export default function RootLayout({
       <body className={`${inter.className} bg-deep-purple text-cream overflow-x-hidden`}>
         <SoundProvider>
           <Navigation />
-          <main className="min-h-screen">{children}</main>
+          <main className="min-h-screen pt-24">{children}</main>
         </SoundProvider>
+         <div id="modal-portal" /> 
       </body>
     </html>
   )
